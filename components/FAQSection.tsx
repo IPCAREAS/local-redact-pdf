@@ -35,6 +35,14 @@ const DEFAULT_FAQS = [
     q: 'Er Sladd.app GDPR-kompatibelt?',
     a: 'Siden Sladd.app aldri laster opp filene dine, elimineres dataoverføringsrisikoen som de fleste compliance-rammeverk handler om. GDPR-samsvar avhenger likevel av egne lagrings- og behandlingsrutiner.',
   },
+  {
+    q: 'Kan Sladd.app brukes i kommune, offentlig sektor og bedrift?',
+    a: 'Ja. Fordi Sladd.app behandler alle PDF-er og bilder 100 % lokalt i nettleseren på din egen datamaskin, lastes aldri dokumenter opp til en ekstern sky eller tredjepartsserver. Det gjør verktøyet trygt å bruke for saksbehandlere i kommune og offentlig sektor, advokater, regnskapsførere og helsepersonell som må sladde sensitiv informasjon før innsyn eller utsending.',
+  },
+  {
+    q: 'Hvilke norske personopplysninger kan Sladd.app finne automatisk?',
+    a: 'Funksjonen for automatisk gjenkjenning skanner dokumentet lokalt og finner norske 11-sifrede fødselsnumre, norske kontonumre (xxxx.xx.xxxxx), telefonnumre, e-postadresser og beløp, slik at du kan sladde alt med ett klikk.',
+  },
 ]
 
 interface Props {
