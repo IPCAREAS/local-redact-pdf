@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  turbopack: {},
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sladd.app/sitemap.xml

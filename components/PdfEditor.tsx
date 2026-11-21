@@ -38,14 +38,13 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
   const [pageHeight, setPageHeight] = useState(0)
   const [proActive, setProActive] = useState(isPro())
 
-  // Load PDF or image
   useEffect(() => {
     if (loadedFile.type === 'pdf') {
       loadPdf()
     } else {
       loadImage()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedFile])
 
   const loadPdf = async () => {
@@ -90,7 +89,6 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     img.src = loadedFile.url
   }
 
-  // Draw canvas
   useEffect(() => {
     if (!canvasRef.current || pdfPages.length === 0) return
     const canvas = canvasRef.current
@@ -100,21 +98,16 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
 
     canvas.width = pageData.width
     canvas.height = pageData.height
-
     ctx.putImageData(pageData, 0, 0)
 
-    // Draw redaction boxes for current page
-    const pageBoxes = boxes.filter(b => b.page === currentPage)
+    const pageBoxes = boxes.filter((b) => b.page === currentPage)
     for (const box of pageBoxes) {
       if (box.type === 'redact') {
         ctx.fillStyle = '#000000'
         ctx.fillRect(box.x, box.y, box.width, box.height)
       } else {
-        // Blur using pixelation
         applyBlur(ctx, box)
       }
-
-      // Selection highlight
       if (box.id === selectedBox) {
         ctx.strokeStyle = '#6366f1'
         ctx.lineWidth = 3
@@ -125,7 +118,6 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     }
   }, [pdfPages, currentPage, boxes, selectedBox])
 
-  // Overlay for drawing
   useEffect(() => {
     const overlay = overlayRef.current
     const canvas = canvasRef.current
@@ -149,10 +141,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
 
   function applyBlur(ctx: CanvasRenderingContext2D, box: RedactionBox) {
     const pixelSize = 12
-    const x = box.x
-    const y = box.y
-    const w = box.width
-    const h = box.height
+    const { x, y, width: w, height: h } = box
     for (let py = y; py < y + h; py += pixelSize) {
       for (let px = x; px < x + w; px += pixelSize) {
         const data = ctx.getImageData(px, py, 1, 1).data
@@ -175,26 +164,23 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
       clientX = (e as React.MouseEvent).clientX
       clientY = (e as React.MouseEvent).clientY
     }
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
-    }
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
   }
 
   function handlePointerDown(e: React.MouseEvent | React.TouchEvent) {
     const coords = getCanvasCoords(e)
-
     if (tool === 'select') {
-      // Find clicked box
-      const clicked = boxes.find(b =>
-        b.page === currentPage &&
-        coords.x >= b.x && coords.x <= b.x + b.width &&
-        coords.y >= b.y && coords.y <= b.y + b.height
+      const clicked = boxes.find(
+        (b) =>
+          b.page === currentPage &&
+          coords.x >= b.x &&
+          coords.x <= b.x + b.width &&
+          coords.y >= b.y &&
+          coords.y <= b.y + b.height
       )
       setSelectedBox(clicked?.id ?? null)
       return
     }
-
     setIsDrawing(true)
     setDrawStart(coords)
     setDrawCurrent(coords)
@@ -213,45 +199,44 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     const y = Math.min(drawStart.y, drawCurrent.y)
     const w = Math.abs(drawCurrent.x - drawStart.x)
     const h = Math.abs(drawCurrent.y - drawStart.y)
+    if (w < 5 || h < 5) return
 
-    if (w < 5 || h < 5) return // ignore tiny boxes
+    setBoxes((prev) => [
+      ...prev,
+      {
+        id: `box-${++boxIdCounter}`,
+        x, y, width: w, height: h,
+        type: tool as 'redact' | 'blur',
+        page: currentPage,
+      },
+    ])
 
-    const newBox: RedactionBox = {
-      id: `box-${++boxIdCounter}`,
-      x, y, width: w, height: h,
-      type: tool as 'redact' | 'blur',
-      page: currentPage,
-    }
-    setBoxes(prev => [...prev, newBox])
-
-    // Clear overlay
     const overlay = overlayRef.current
     if (overlay) {
-      const ctx = overlay.getContext('2d')!
-      ctx.clearRect(0, 0, overlay.width, overlay.height)
+      overlay.getContext('2d')!.clearRect(0, 0, overlay.width, overlay.height)
     }
   }
 
   const handleUndo = useCallback(() => {
-    setBoxes(prev => {
-      const pageBoxes = prev.filter(b => b.page === currentPage)
+    setBoxes((prev) => {
+      const pageBoxes = prev.filter((b) => b.page === currentPage)
       if (pageBoxes.length === 0) return prev
       const lastId = pageBoxes[pageBoxes.length - 1].id
-      return prev.filter(b => b.id !== lastId)
+      return prev.filter((b) => b.id !== lastId)
     })
     setSelectedBox(null)
   }, [currentPage])
 
   const handleDeleteSelected = useCallback(() => {
     if (!selectedBox) return
-    setBoxes(prev => prev.filter(b => b.id !== selectedBox))
+    setBoxes((prev) => prev.filter((b) => b.id !== selectedBox))
     setSelectedBox(null)
   }, [selectedBox])
 
   const handleAutoDetect = useCallback(async () => {
     if (!proActive) { setShowUpgrade(true); return }
     if (loadedFile.type !== 'pdf') {
-      alert('Auto-Detect PII is only available for PDF files.')
+      alert('Finn persondata er kun tilgjengelig for PDF-filer.')
       return
     }
 
@@ -264,6 +249,8 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const viewport = page.getViewport({ scale: 2 })
+      const baseViewport = page.getViewport({ scale: 1 })
+      const scaleRatio = viewport.width / baseViewport.width
       const textContent = await page.getTextContent()
 
       for (const item of textContent.items) {
@@ -272,20 +259,14 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
         const transform = (item as { transform: number[] }).transform
 
         for (const [, pattern] of Object.entries(PII_PATTERNS)) {
-          const regex = new RegExp(pattern.source, 'g')
+          const regex = new RegExp(pattern.source, 'gi')
           if (regex.test(str)) {
-            // Approximate bounds
-            const x = transform[4]
-            const y = viewport.height - transform[5] - 20
-            const width = Math.max(str.length * 7, 60)
-            const height = 20
-
             newBoxes.push({
               id: `pii-${++boxIdCounter}`,
-              x: x * (viewport.width / page.getViewport({ scale: 1 }).width),
-              y: y,
-              width: width * (viewport.width / page.getViewport({ scale: 1 }).width),
-              height: height * 2,
+              x: transform[4] * scaleRatio,
+              y: viewport.height - transform[5] - 20,
+              width: Math.max(str.length * 7 * scaleRatio, 60),
+              height: 40,
               type: 'redact',
               page: pageNum,
             })
@@ -296,10 +277,10 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     }
 
     if (newBoxes.length === 0) {
-      alert('No PII detected in this document.')
+      alert('Ingen persondata funnet i dette dokumentet.')
     } else {
-      setBoxes(prev => [...prev, ...newBoxes])
-      alert(`Found and marked ${newBoxes.length} potential PII item(s).`)
+      setBoxes((prev) => [...prev, ...newBoxes])
+      alert(`Fant og markerte ${newBoxes.length} mulig persondata-felt.`)
     }
   }, [loadedFile, proActive])
 
@@ -307,7 +288,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     if (!proActive) { setShowUpgrade(true); return }
     if (!searchQuery.trim()) return
     if (loadedFile.type !== 'pdf') {
-      alert('Search & Redact is only available for PDF files.')
+      alert('Søk og sladd er kun tilgjengelig for PDF-filer.')
       return
     }
 
@@ -321,6 +302,8 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const viewport = page.getViewport({ scale: 2 })
+      const baseViewport = page.getViewport({ scale: 1 })
+      const scaleRatio = viewport.width / baseViewport.width
       const textContent = await page.getTextContent()
 
       for (const item of textContent.items) {
@@ -331,9 +314,9 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
 
         newBoxes.push({
           id: `search-${++boxIdCounter}`,
-          x: transform[4] * (viewport.width / page.getViewport({ scale: 1 }).width),
+          x: transform[4] * scaleRatio,
           y: viewport.height - transform[5] - 20,
-          width: Math.max(query.length * 8, 60) * (viewport.width / page.getViewport({ scale: 1 }).width),
+          width: Math.max(query.length * 8 * scaleRatio, 60),
           height: 36,
           type: 'redact',
           page: pageNum,
@@ -342,28 +325,23 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     }
 
     if (newBoxes.length === 0) {
-      alert(`"${searchQuery}" not found in document.`)
+      alert(`«${searchQuery}» ble ikke funnet i dokumentet.`)
     } else {
-      setBoxes(prev => [...prev, ...newBoxes])
-      alert(`Found and marked ${newBoxes.length} occurrence(s).`)
+      setBoxes((prev) => [...prev, ...newBoxes])
+      alert(`Fant og markerte ${newBoxes.length} forekomst(er).`)
     }
   }, [loadedFile, searchQuery, proActive])
 
   const handleExport = useCallback(async () => {
-    if (!canDownload()) {
-      setShowUpgrade(true)
-      return
-    }
+    if (!canDownload()) { setShowUpgrade(true); return }
 
     setIsExporting(true)
     try {
       if (loadedFile.type === 'image') {
-        const canvas = canvasRef.current!
-        const blob = await exportRedactedImage(canvas)
-        downloadBlob(blob, 'redacted.png')
+        const blob = await exportRedactedImage(canvasRef.current!)
+        downloadBlob(blob, 'sladdet.png')
       } else {
         const canvases: HTMLCanvasElement[] = []
-
         for (let p = 1; p <= totalPages; p++) {
           const c = document.createElement('canvas')
           const pageData = pdfPages[p - 1]
@@ -371,9 +349,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
           c.height = pageData.height
           const ctx = c.getContext('2d')!
           ctx.putImageData(pageData, 0, 0)
-
-          const pageBoxes = boxes.filter(b => b.page === p)
-          for (const box of pageBoxes) {
+          for (const box of boxes.filter((b) => b.page === p)) {
             if (box.type === 'redact') {
               ctx.fillStyle = '#000000'
               ctx.fillRect(box.x, box.y, box.width, box.height)
@@ -383,11 +359,9 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
           }
           canvases.push(c)
         }
-
         const bytes = await exportRedactedPdf(canvases)
-        downloadBlob(new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }), 'redacted.pdf')
+        downloadBlob(new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' }), 'sladdet.pdf')
       }
-
       incrementDownloadCount()
     } finally {
       setIsExporting(false)
@@ -403,39 +377,36 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
     URL.revokeObjectURL(url)
   }
 
-  const remaining = remainingDownloads()
-  const pageBoxCount = boxes.filter(b => b.page === currentPage).length
-
-  // suppress unused var warnings
   void pageWidth
   void pageHeight
+
+  const remaining = remainingDownloads()
+  const pageBoxCount = boxes.filter((b) => b.page === currentPage).length
 
   return (
     <>
       {showUpgrade && (
-        <UpgradeModal
-          onClose={() => setShowUpgrade(false)}
-          onActivated={() => setProActive(true)}
-        />
+        <UpgradeModal onClose={() => setShowUpgrade(false)} onActivated={() => setProActive(true)} />
       )}
 
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        {/* Toolbar */}
+        {/* Verktøylinje */}
         <div className="border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex flex-wrap items-center gap-2">
-          {/* File info */}
           <div className="flex items-center gap-2 mr-2">
             <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[180px]">
               {loadedFile.file.name}
             </span>
-            <button onClick={onReset} className="text-xs text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded">
-              ✕ Close
+            <button
+              onClick={onReset}
+              className="text-xs text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded"
+            >
+              ✕ Lukk
             </button>
           </div>
 
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
 
-          {/* Tools */}
-          {(['redact', 'blur', 'select'] as Tool[]).map(t => (
+          {(['redact', 'blur', 'select'] as Tool[]).map((t) => (
             <button
               key={t}
               onClick={() => setTool(t)}
@@ -445,50 +416,61 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
-              {t === 'redact' ? '⬛ Redact' : t === 'blur' ? '🔲 Blur' : '↖ Select'}
+              {t === 'redact' ? '⬛ Sladd' : t === 'blur' ? '🔲 Sløre' : '↖ Velg'}
             </button>
           ))}
 
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
 
-          {/* Undo / Delete */}
           <button
             onClick={handleUndo}
             disabled={pageBoxCount === 0}
             className="px-3 py-1.5 rounded-lg text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 transition-all"
           >
-            ↩ Undo
+            ↩ Angre
           </button>
           {selectedBox && (
             <button
               onClick={handleDeleteSelected}
               className="px-3 py-1.5 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
             >
-              🗑 Delete
+              🗑 Slett
             </button>
           )}
 
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
 
-          {/* Zoom */}
           <div className="flex items-center gap-1">
-            <button onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} className="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">−</button>
+            <button
+              onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}
+              className="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              −
+            </button>
             <span className="text-xs text-slate-500 w-10 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">+</button>
+            <button
+              onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+              className="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              +
+            </button>
           </div>
 
           <div className="flex-1" />
 
-          {/* Pro badge or upgrade */}
           {proActive ? (
-            <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2.5 py-1 rounded-full font-medium">✦ Pro</span>
+            <span className="text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2.5 py-1 rounded-full font-medium">
+              ✦ Pro
+            </span>
           ) : (
-            <button onClick={() => setShowUpgrade(true)} className="text-xs bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-1.5 rounded-lg font-medium hover:opacity-90 transition-opacity">
-              Upgrade to Pro
+            <button
+              onClick={() => setShowUpgrade(true)}
+              className="text-xs bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-1.5 rounded-lg font-medium hover:opacity-90 transition-opacity"
+            >
+              Oppgrader til Pro
             </button>
           )}
 
-          {/* Export */}
           <button
             onClick={handleExport}
             disabled={isExporting}
@@ -500,15 +482,15 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Exporting...
+                Eksporterer...
               </>
             ) : (
-              <>↓ Download {!proActive && remaining < 2 ? `(${remaining} left)` : ''}</>
+              <>↓ Last ned {!proActive && remaining < 2 ? `(${remaining} igjen)` : ''}</>
             )}
           </button>
         </div>
 
-        {/* PII / Search row */}
+        {/* PII / Søk-rad */}
         <div className="border-b border-slate-200 dark:border-slate-700 px-4 py-2 flex flex-wrap items-center gap-2">
           <button
             onClick={handleAutoDetect}
@@ -518,45 +500,46 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
                 : 'text-slate-400 dark:text-slate-500 border border-dashed border-slate-300 dark:border-slate-600'
             }`}
           >
-            🔍 Auto-Detect PII
-            {!proActive && <span className="text-xs bg-slate-200 dark:bg-slate-700 px-1 rounded">Pro</span>}
+            🔍 Finn persondata automatisk
+            {!proActive && (
+              <span className="text-xs bg-slate-200 dark:bg-slate-700 px-1 rounded">Pro</span>
+            )}
           </button>
 
           <div className="flex items-center gap-1 flex-1 max-w-xs">
             <input
               type="text"
-              placeholder={proActive ? 'Search & Redact...' : 'Search & Redact (Pro)'}
+              placeholder={proActive ? 'Søk og sladd...' : 'Søk og sladd (Pro)'}
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearchRedact()}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchRedact()}
               disabled={!proActive}
               className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 disabled:opacity-40 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400"
             />
             <button
               onClick={proActive ? handleSearchRedact : () => setShowUpgrade(true)}
-              className="px-3 py-1.5 text-sm rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors disabled:opacity-40"
+              className="px-3 py-1.5 text-sm rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
             >
-              Go
+              Søk
             </button>
           </div>
 
           <div className="flex-1" />
 
-          {/* Page selector */}
           {totalPages > 1 && (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30"
               >
                 ‹
               </button>
               <span className="text-sm text-slate-500 dark:text-slate-400">
-                Page {currentPage} of {totalPages}
+                Side {currentPage} av {totalPages}
               </span>
               <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30"
               >
@@ -566,7 +549,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
           )}
         </div>
 
-        {/* Canvas area */}
+        {/* Canvas-område */}
         <div
           ref={containerRef}
           className="relative overflow-auto bg-slate-100 dark:bg-slate-900 p-4"
@@ -579,7 +562,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <p className="text-sm text-slate-500">Loading document...</p>
+                <p className="text-sm text-slate-500">Laster dokumentet...</p>
               </div>
             </div>
           ) : (
@@ -608,14 +591,20 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
           )}
         </div>
 
-        {/* Status bar */}
+        {/* Statuslinje */}
         <div className="border-t border-slate-200 dark:border-slate-700 px-4 py-2 flex items-center justify-between text-xs text-slate-400">
-          <span>{pageBoxCount} redaction{pageBoxCount !== 1 ? 's' : ''} on this page · {boxes.length} total</span>
+          <span>
+            {pageBoxCount} sladding{pageBoxCount !== 1 ? 'er' : ''} på denne siden · {boxes.length} totalt
+          </span>
           <span className="flex items-center gap-1 text-emerald-500">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                clipRule="evenodd"
+              />
             </svg>
-            Your file never leaves this device
+            Filen din forlater aldri denne enheten
           </span>
         </div>
       </div>
