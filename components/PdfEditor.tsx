@@ -36,6 +36,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
   const [pageWidth, setPageWidth] = useState(0)
   const [pageHeight, setPageHeight] = useState(0)
   const [proActive, setProActive] = useState(isPro())
+  const [piiResult, setPiiResult] = useState<string | null>(null)
 
   // Lytt etter global Pro-aktivering (URL-redirect eller modal)
   useEffect(() => {
@@ -254,14 +255,16 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
         c.getContext('2d')!.putImageData(pageData, 0, 0)
         const { detectPiiInImage } = await import('@/lib/imagePiiDetect')
         const found = await detectPiiInImage(c)
-        if (found.length === 0) {
-          alert('Ingen persondata funnet i bildet (OCR).')
-          return
+        const msg = found.length === 0
+          ? 'Ingen persondata funnet i bildet (OCR)'
+          : `Fant ${found.length} sensitive felter via OCR`
+        setPiiResult(msg)
+        setTimeout(() => setPiiResult(null), 8000)
+        if (found.length > 0) {
+          setBoxes(prev => [...prev, ...found.map(b => ({
+            ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const, page: 1,
+          }))])
         }
-        setBoxes(prev => [...prev, ...found.map(b => ({
-          ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const, page: 1,
-        }))])
-        alert(`OCR fant og markerte ${found.length} mulig persondata-felt.`)
         return
       }
 
@@ -271,14 +274,16 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
 
       if (hasText) {
         const found = await detectPiiInPdf(loadedFile.url, 2)
-        if (found.length === 0) {
-          alert('Ingen persondata funnet i dokumentet.')
-          return
+        const msg = found.length === 0
+          ? 'Ingen persondata funnet i dokumentet'
+          : `Fant ${found.length} sensitive felter`
+        setPiiResult(msg)
+        setTimeout(() => setPiiResult(null), 8000)
+        if (found.length > 0) {
+          setBoxes(prev => [...prev, ...found.map(b => ({
+            ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const,
+          }))])
         }
-        setBoxes(prev => [...prev, ...found.map(b => ({
-          ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const,
-        }))])
-        alert(`Fant og markerte ${found.length} mulig persondata-felt.`)
       } else {
         // Ingen tekstlag — kjør OCR side for side
         const { detectPiiInImage } = await import('@/lib/imagePiiDetect')
@@ -294,12 +299,14 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
             ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const, page: p + 1,
           })))
         }
-        if (newBoxes.length === 0) {
-          alert('Ingen persondata funnet (OCR — PDF uten tekstlag).')
-          return
+        const msg = newBoxes.length === 0
+          ? 'Ingen persondata funnet (PDF uten tekstlag — OCR)'
+          : `Fant ${newBoxes.length} sensitive felter via OCR`
+        setPiiResult(msg)
+        setTimeout(() => setPiiResult(null), 8000)
+        if (newBoxes.length > 0) {
+          setBoxes(prev => [...prev, ...newBoxes])
         }
-        setBoxes(prev => [...prev, ...newBoxes])
-        alert(`OCR fant og markerte ${newBoxes.length} mulig persondata-felt.`)
       }
     } finally {
       setIsExporting(false)
@@ -570,6 +577,24 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
             </div>
           )}
         </div>
+
+        {/* PII-resultatbanner */}
+        {piiResult && (
+          <div className={`border-b px-4 py-2.5 text-sm flex items-center gap-2 font-medium ${
+            piiResult.startsWith('Ingen')
+              ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400'
+              : 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
+          }`}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              {piiResult.startsWith('Ingen') ? (
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              ) : (
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              )}
+            </svg>
+            {piiResult}
+          </div>
+        )}
 
         {/* Canvas-område */}
         <div

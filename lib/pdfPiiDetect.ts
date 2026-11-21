@@ -40,9 +40,6 @@ export async function detectPiiInPdf(
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
     const page = await pdf.getPage(pageNum)
     const viewport = page.getViewport({ scale: renderScale })
-    const baseVP = page.getViewport({ scale: 1 })
-    const scaleRatio = viewport.width / baseVP.width
-
     const tc = await page.getTextContent()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: LineItem[] = (tc.items as any[])
@@ -64,16 +61,25 @@ export async function detectPiiInPdf(
             charPositions[Math.min(m.index + m[0].length - 1, charPositions.length - 1)]
           if (!start || !end) continue
 
-          const x = start.x * scaleRatio - 2
-          const y =
-            viewport.height -
-            start.y * scaleRatio -
-            Math.max(start.height, end.height) * scaleRatio * 1.1
-          const w = (end.x + end.charWidth - start.x) * scaleRatio + 4
-          const h = Math.max(start.height, end.height) * scaleRatio * 1.5
+          // viewport.convertToViewportRectangle tar uspesifiserte PDF-koordinater
+          // (Y oppover) og returnerer canvas-koordinater (Y nedover, skalert).
+          const PAD = 4
+          const h = Math.max(start.height, end.height)
+          const pdfRect = [
+            start.x,              // venstre
+            start.y - h,          // bunn i PDF-koordinater
+            end.x + end.charWidth,// høyre
+            start.y + 2,          // topp i PDF-koordinater (litt over baseline)
+          ]
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const [vx1, vy1, vx2, vy2] = (viewport as any).convertToViewportRectangle(pdfRect) as number[]
+          const bx = Math.min(vx1, vx2) - PAD
+          const by = Math.min(vy1, vy2) - PAD
+          const bw = Math.abs(vx2 - vx1) + PAD * 2
+          const bh = Math.abs(vy2 - vy1) + PAD * 2
 
-          if (w > 4 && h > 4) {
-            boxes.push({ x: Math.max(x, 0), y: Math.max(y, 0), width: w, height: h, page: pageNum })
+          if (bw > 4 && bh > 4) {
+            boxes.push({ x: Math.max(bx, 0), y: Math.max(by, 0), width: bw, height: bh, page: pageNum })
           }
         }
       }
