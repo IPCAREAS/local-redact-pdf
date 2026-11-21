@@ -71,7 +71,7 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
         {/* Funksjoner */}
         <div className="space-y-2 mb-6">
           {[
-            'Ubegrenset nedlastinger per dag',
+            'Ubegrenset nedlastinger (ingen ukes- eller sidebegrensning)',
             'Finn persondata automatisk (e-post, tlf, ID-numre, kontonummer)',
             'Søk og sladd på tvers av hele dokumentet',
             'Prioritert støtte',

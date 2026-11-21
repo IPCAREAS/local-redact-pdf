@@ -25,7 +25,7 @@ const DEFAULT_FAQS = [
   },
   {
     q: 'Hva er grensen for gratis-planen?',
-    a: 'Gratis-planen gir 2 nedlastinger per dag. Oppgrader til Pro for ubegrenset nedlasting, automatisk persondata-deteksjon og Søk og sladd.',
+    a: 'Gratis-planen gir 1 nedlasting per uke, og maks 2 PDF-sider per nedlasting. Oppgrader til Pro for ubegrenset nedlasting uten side- eller ukebegrensning, automatisk persondata-deteksjon (Beta) og Søk og sladd.',
   },
   {
     q: 'Hvordan fjerner jeg tekst permanent fra en PDF?',

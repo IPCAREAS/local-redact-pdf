@@ -1,9 +1,18 @@
 const KEY = 'localredact_downloads'
 const PRO_KEY = 'localredact_pro_license'
-const DAILY_LIMIT = 2
+const WEEKLY_LIMIT = 1
+export const FREE_MAX_PAGES = 2
+
+/** Returnerer ISO-uke-nøkkel, f.eks. "2026-W47" */
+function getWeekKey(): string {
+  const d = new Date()
+  const jan1 = new Date(d.getFullYear(), 0, 1)
+  const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7)
+  return `${d.getFullYear()}-W${week}`
+}
 
 interface DownloadRecord {
-  date: string
+  week: string
   count: number
 }
 
@@ -13,8 +22,7 @@ export function getDownloadCount(): number {
     const raw = localStorage.getItem(KEY)
     if (!raw) return 0
     const record: DownloadRecord = JSON.parse(raw)
-    const today = new Date().toISOString().split('T')[0]
-    if (record.date !== today) return 0
+    if (record.week !== getWeekKey()) return 0
     return record.count
   } catch {
     return 0
@@ -23,19 +31,18 @@ export function getDownloadCount(): number {
 
 export function incrementDownloadCount(): void {
   if (typeof window === 'undefined') return
-  const today = new Date().toISOString().split('T')[0]
   const count = getDownloadCount() + 1
-  localStorage.setItem(KEY, JSON.stringify({ date: today, count }))
+  localStorage.setItem(KEY, JSON.stringify({ week: getWeekKey(), count }))
 }
 
 export function canDownload(): boolean {
   if (isPro()) return true
-  return getDownloadCount() < DAILY_LIMIT
+  return getDownloadCount() < WEEKLY_LIMIT
 }
 
 export function remainingDownloads(): number {
   if (isPro()) return Infinity
-  return Math.max(0, DAILY_LIMIT - getDownloadCount())
+  return Math.max(0, WEEKLY_LIMIT - getDownloadCount())
 }
 
 export function isPro(): boolean {

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { LoadedFile } from './RedactApp'
 import UpgradeModal from './UpgradeModal'
-import { canDownload, incrementDownloadCount, remainingDownloads, isPro } from '@/lib/freemium'
+import { canDownload, incrementDownloadCount, remainingDownloads, isPro, FREE_MAX_PAGES } from '@/lib/freemium'
 import { exportRedactedPdf, exportRedactedImage, type RedactionBox } from '@/lib/exportPdf'
 
 type Tool = 'redact' | 'blur' | 'select'
@@ -368,6 +368,9 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
 
   const handleExport = useCallback(async () => {
     if (!canDownload()) { setShowUpgrade(true); return }
+    if (!isPro() && loadedFile.type === 'pdf' && totalPages > FREE_MAX_PAGES) {
+      setShowUpgrade(true); return
+    }
 
     setIsExporting(true)
     try {
@@ -519,7 +522,11 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
                 Eksporterer...
               </>
             ) : (
-              <>↓ Last ned {!proActive && remaining < 2 ? `(${remaining} igjen)` : ''}</>
+              <>
+            ↓ Last ned
+            {!proActive && remaining === 0 && ' (ukesgrense nådd)'}
+            {!proActive && remaining > 0 && loadedFile.type === 'pdf' && totalPages > FREE_MAX_PAGES && ' (Pro — PDF over 2 sider)'}
+          </>
             )}
           </button>
         </div>
@@ -545,6 +552,7 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
             ) : (
               <>
                 🔍 Finn persondata automatisk
+                <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 px-1.5 py-0.5 rounded font-medium">Beta</span>
                 {!proActive && (
                   <span className="text-xs bg-slate-200 dark:bg-slate-700 px-1 rounded">Pro</span>
                 )}
