@@ -75,7 +75,7 @@ export default function RedactApp() {
                 Draw redaction boxes, blur sensitive content, auto-detect PII. Your files <strong>never leave your device</strong> — completely private.
               </p>
               <div className="flex flex-wrap justify-center gap-3 text-sm text-slate-500 dark:text-slate-400 mb-8">
-                {['No uploads', 'No accounts', 'No tracking', 'Open source'].map((f) => (
+                {['No uploads', 'No accounts', 'No tracking', '100% Client-Side'].map((f) => (
                   <span key={f} className="flex items-center gap-1.5">
                     <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
