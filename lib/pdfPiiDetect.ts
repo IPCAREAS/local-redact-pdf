@@ -61,22 +61,18 @@ export async function detectPiiInPdf(
             charPositions[Math.min(m.index + m[0].length - 1, charPositions.length - 1)]
           if (!start || !end) continue
 
-          // viewport.convertToViewportRectangle tar uspesifiserte PDF-koordinater
-          // (Y oppover) og returnerer canvas-koordinater (Y nedover, skalert).
+          // Bruk convertToViewportPoint (finnes i pdfjs-dist 6.x) for
+          // å konvertere PDF-koordinater (Y oppover) til canvas (Y nedover, skalert).
           const PAD = 4
-          const h = Math.max(start.height, end.height)
-          const pdfRect = [
-            start.x,              // venstre
-            start.y - h,          // bunn i PDF-koordinater
-            end.x + end.charWidth,// høyre
-            start.y + 2,          // topp i PDF-koordinater (litt over baseline)
-          ]
+          const itemH = Math.max(start.height, end.height)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const [vx1, vy1, vx2, vy2] = (viewport as any).convertToViewportRectangle(pdfRect) as number[]
-          const bx = Math.min(vx1, vx2) - PAD
-          const by = Math.min(vy1, vy2) - PAD
-          const bw = Math.abs(vx2 - vx1) + PAD * 2
-          const bh = Math.abs(vy2 - vy1) + PAD * 2
+          const vp = viewport as any
+          const [topX, topY] = vp.convertToViewportPoint(start.x, start.y + 2) as number[]
+          const [botX, botY] = vp.convertToViewportPoint(end.x + end.charWidth, start.y - itemH) as number[]
+          const bx = Math.min(topX, botX) - PAD
+          const by = Math.min(topY, botY) - PAD
+          const bw = Math.abs(botX - topX) + PAD * 2
+          const bh = Math.abs(botY - topY) + PAD * 2
 
           if (bw > 4 && bh > 4) {
             boxes.push({ x: Math.max(bx, 0), y: Math.max(by, 0), width: bw, height: bh, page: pageNum })
