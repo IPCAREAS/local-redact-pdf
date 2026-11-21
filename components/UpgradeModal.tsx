@@ -134,10 +134,7 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
                 Livstidstilgang
                 <span className="text-xs bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">BEST DEAL</span>
               </span>
-              <span className="text-right leading-tight">
-                <span className="line-through text-slate-500 dark:text-slate-400 font-normal text-xs block">799 kr</span>
-                <span className="font-bold text-sm">499 kr</span>
-              </span>
+              <span className="text-slate-400 dark:text-slate-500 font-normal text-sm">799 kr</span>
             </a>
 
             {/* Separator */}
