@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import FileDropzone from './FileDropzone'
 import PdfEditor from './PdfEditor'
 import FAQSection from './FAQSection'
+import TrustSection from './TrustSection'
 
 export type FileType = 'pdf' | 'image' | null
 
@@ -125,18 +126,24 @@ export default function RedactApp({
             <FileDropzone onFileLoad={handleFileLoad} />
           )}
 
-          {/* FAQ */}
-          {!loadedFile && <FAQSection faqs={customFaqs} />}
+          {/* Tillitsseksjon + FAQ */}
+          {!loadedFile && (
+            <>
+              <TrustSection />
+              <FAQSection faqs={customFaqs} />
+            </>
+          )}
         </main>
 
         <footer className="border-t border-slate-200 dark:border-slate-700 mt-16 py-8 text-center text-sm text-slate-400">
           <p>
             Sladd.app — Filene dine er trygge på din enhet. Alltid. &copy; {new Date().getFullYear()}
           </p>
-          <div className="mt-2 flex justify-center gap-4 text-xs">
+          <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs">
             <a href="/sladd-kontoutskrift" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Sladd kontoutskrift</a>
             <a href="/sladd-pass-og-id" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Sladd pass og ID</a>
             <a href="/sladd-faktura-og-kontrakt" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Sladd faktura og kontrakt</a>
+            <a href="https://billing.stripe.com/p/login/cNieVcalLehQ6ZMek75wI00" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Administrer abonnement</a>
           </div>
         </footer>
       </div>

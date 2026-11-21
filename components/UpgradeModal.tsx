@@ -11,7 +11,8 @@ interface Props {
 const VALID_KEY = 'SLADD-PRO-2026'
 
 const STRIPE_MONTHLY = 'https://buy.stripe.com/fZueVcctT5Lkck65NB5wI01'
-const STRIPE_LIFETIME = 'https://buy.stripe.com/cNieVcalLehQ6ZMek75wI00'
+const STRIPE_LIFETIME = 'https://buy.stripe.com/9B6bJ0alLc9Ick60th5wI02'
+const STRIPE_PORTAL  = 'https://billing.stripe.com/p/login/cNieVcalLehQ6ZMek75wI00'
 
 export default function UpgradeModal({ onClose, onActivated }: Props) {
   const [licenseKey, setLicenseKey] = useState('')
@@ -93,6 +94,12 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
             <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 text-center">
               <p className="text-emerald-700 dark:text-emerald-400 font-medium">✓ Pro er aktivert</p>
             </div>
+            <p className="text-center text-xs text-slate-400">
+              <a href={STRIPE_PORTAL} target="_blank" rel="noopener noreferrer"
+                className="hover:underline hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                Administrer / si opp abonnement →
+              </a>
+            </p>
             <button
               onClick={() => { deactivatePro(); onClose() }}
               className="w-full text-sm text-slate-400 hover:text-red-500 transition-colors"
@@ -103,15 +110,20 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
         ) : (
           <div className="space-y-3">
             {/* Stripe-knapper */}
-            <a
-              href={STRIPE_MONTHLY}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all"
-            >
-              <span>Månedlig Pro</span>
-              <span className="text-indigo-200 font-normal text-sm">39 kr/mnd</span>
-            </a>
+            <div>
+              <a
+                href={STRIPE_MONTHLY}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all"
+              >
+                <span>Månedlig Pro</span>
+                <span className="text-indigo-200 font-normal text-sm">39 kr/mnd</span>
+              </a>
+              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-1.5">
+                Ingen bindingstid – si opp når som helst med ett klikk
+              </p>
+            </div>
             <a
               href={STRIPE_LIFETIME}
               target="_blank"
@@ -122,7 +134,10 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
                 Livstidstilgang
                 <span className="text-xs bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">BEST DEAL</span>
               </span>
-              <span className="text-slate-400 dark:text-slate-500 font-normal text-sm">299 kr</span>
+              <span className="text-right leading-tight">
+                <span className="line-through text-slate-500 dark:text-slate-400 font-normal text-xs block">799 kr</span>
+                <span className="font-bold text-sm">499 kr</span>
+              </span>
             </a>
 
             {/* Separator */}
@@ -157,6 +172,12 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
             >
               {status === 'loading' ? 'Validerer...' : 'Aktiver lisens'}
             </button>
+            <p className="text-center text-xs text-slate-400">
+              <a href={STRIPE_PORTAL} target="_blank" rel="noopener noreferrer"
+                className="hover:underline hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                Administrer / si opp abonnement →
+              </a>
+            </p>
           </div>
         )}
       </div>
