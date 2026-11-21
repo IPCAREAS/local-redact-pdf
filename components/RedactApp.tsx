@@ -144,6 +144,7 @@ export default function RedactApp({
             <a href="/sladd-pass-og-id" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Sladd pass og ID</a>
             <a href="/sladd-faktura-og-kontrakt" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Sladd faktura og kontrakt</a>
             <a href="https://billing.stripe.com/p/login/cNieVcalLehQ6ZMek75wI00" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Administrer abonnement</a>
+            <a href="/vilkar" className="hover:text-slate-600 dark:hover:text-slate-200 transition-colors">Vilkår og personvern</a>
           </div>
         </footer>
       </div>
