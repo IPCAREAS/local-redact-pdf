@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import FileDropzone from './FileDropzone'
 import PdfEditor from './PdfEditor'
 import FAQSection from './FAQSection'
-import { activatePro } from '@/lib/freemium'
 
 export type FileType = 'pdf' | 'image' | null
 
@@ -27,21 +26,6 @@ export default function RedactApp({
 }: Props) {
   const [loadedFile, setLoadedFile] = useState<LoadedFile | null>(null)
   const [darkMode, setDarkMode] = useState(false)
-  const [proJustActivated, setProJustActivated] = useState(false)
-
-  // Aktiver Pro automatisk ved ?pro_key=SLADD-PRO-2026 i URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const proKey = params.get('pro_key')
-    if (proKey === 'SLADD-PRO-2026') {
-      activatePro(proKey)
-      setProJustActivated(true)
-      params.delete('pro_key')
-      const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '')
-      window.history.replaceState({}, '', newUrl)
-      setTimeout(() => setProJustActivated(false), 5000)
-    }
-  }, [])
 
   const handleFileLoad = useCallback((file: File) => {
     const url = URL.createObjectURL(file)
@@ -134,17 +118,7 @@ export default function RedactApp({
             </div>
           )}
 
-          {/* Pro-aktivert-banner (vises etter redirect fra Stripe) */}
-          {proJustActivated && (
-            <div className="mb-6 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-xl px-5 py-3.5 text-emerald-700 dark:text-emerald-300 text-sm font-medium">
-              <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Betaling mottatt — Pro er nå aktivert! Takk for støtten 🎉
-            </div>
-          )}
-
-        {/* Editor eller dropzone */}
+          {/* Editor eller dropzone */}
           {loadedFile ? (
             <PdfEditor loadedFile={loadedFile} onReset={handleReset} />
           ) : (

@@ -10,8 +10,8 @@ interface Props {
 
 const VALID_KEY = 'SLADD-PRO-2026'
 
-const STRIPE_MONTHLY = 'https://buy.stripe.com/test_aFa6oG9e003H7W31Ew2Nq01'
-const STRIPE_LIFETIME = 'https://buy.stripe.com/test_5kQdR81Lyg2Fekrab22Nq00'
+const STRIPE_MONTHLY = 'https://buy.stripe.com/fZueVcctT5Lkck65NB5wI01'
+const STRIPE_LIFETIME = 'https://buy.stripe.com/cNieVcalLehQ6ZMek75wI00'
 
 export default function UpgradeModal({ onClose, onActivated }: Props) {
   const [licenseKey, setLicenseKey] = useState('')
@@ -28,8 +28,9 @@ export default function UpgradeModal({ onClose, onActivated }: Props) {
     setErrorMsg('')
     await new Promise((r) => setTimeout(r, 600))
 
-    if (licenseKey.trim() === VALID_KEY || licenseKey.trim().length >= 10) {
+    if (licenseKey.trim().toUpperCase() === VALID_KEY || licenseKey.trim().length >= 10) {
       activatePro(licenseKey.trim())
+      window.dispatchEvent(new CustomEvent('sladd:pro-activated'))
       setStatus('success')
       setTimeout(() => { onActivated(); onClose() }, 1200)
     } else {

@@ -5,7 +5,6 @@ import type { LoadedFile } from './RedactApp'
 import UpgradeModal from './UpgradeModal'
 import { canDownload, incrementDownloadCount, remainingDownloads, isPro } from '@/lib/freemium'
 import { exportRedactedPdf, exportRedactedImage, type RedactionBox } from '@/lib/exportPdf'
-import { PII_PATTERNS } from '@/lib/piiDetect'
 
 type Tool = 'redact' | 'blur' | 'select'
 
@@ -37,6 +36,13 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
   const [pageWidth, setPageWidth] = useState(0)
   const [pageHeight, setPageHeight] = useState(0)
   const [proActive, setProActive] = useState(isPro())
+
+  // Lytt etter global Pro-aktivering (URL-redirect eller modal)
+  useEffect(() => {
+    const onProActivated = () => setProActive(true)
+    window.addEventListener('sladd:pro-activated', onProActivated)
+    return () => window.removeEventListener('sladd:pro-activated', onProActivated)
+  }, [])
 
   useEffect(() => {
     if (loadedFile.type === 'pdf') {
@@ -235,54 +241,70 @@ export default function PdfEditor({ loadedFile, onReset }: Props) {
 
   const handleAutoDetect = useCallback(async () => {
     if (!proActive) { setShowUpgrade(true); return }
-    if (loadedFile.type !== 'pdf') {
-      alert('Finn persondata er kun tilgjengelig for PDF-filer.')
-      return
-    }
 
-    const pdfjsLib = await import('pdfjs-dist')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
-    const pdf = await pdfjsLib.getDocument({ url: loadedFile.url } as Parameters<typeof pdfjsLib.getDocument>[0]).promise
-
-    const newBoxes: RedactionBox[] = []
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum)
-      const viewport = page.getViewport({ scale: 2 })
-      const baseViewport = page.getViewport({ scale: 1 })
-      const scaleRatio = viewport.width / baseViewport.width
-      const textContent = await page.getTextContent()
-
-      for (const item of textContent.items) {
-        if (!('str' in item)) continue
-        const str = (item as { str: string }).str
-        const transform = (item as { transform: number[] }).transform
-
-        for (const [, pattern] of Object.entries(PII_PATTERNS)) {
-          const regex = new RegExp(pattern.source, 'gi')
-          if (regex.test(str)) {
-            newBoxes.push({
-              id: `pii-${++boxIdCounter}`,
-              x: transform[4] * scaleRatio,
-              y: viewport.height - transform[5] - 20,
-              width: Math.max(str.length * 7 * scaleRatio, 60),
-              height: 40,
-              type: 'redact',
-              page: pageNum,
-            })
-            break
-          }
+    setIsExporting(true)
+    try {
+      if (loadedFile.type === 'image') {
+        // OCR på bilde via Tesseract
+        const pageData = pdfPages[0]
+        if (!pageData) return
+        const c = document.createElement('canvas')
+        c.width = pageData.width
+        c.height = pageData.height
+        c.getContext('2d')!.putImageData(pageData, 0, 0)
+        const { detectPiiInImage } = await import('@/lib/imagePiiDetect')
+        const found = await detectPiiInImage(c)
+        if (found.length === 0) {
+          alert('Ingen persondata funnet i bildet (OCR).')
+          return
         }
+        setBoxes(prev => [...prev, ...found.map(b => ({
+          ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const, page: 1,
+        }))])
+        alert(`OCR fant og markerte ${found.length} mulig persondata-felt.`)
+        return
       }
-    }
 
-    if (newBoxes.length === 0) {
-      alert('Ingen persondata funnet i dette dokumentet.')
-    } else {
-      setBoxes((prev) => [...prev, ...newBoxes])
-      alert(`Fant og markerte ${newBoxes.length} mulig persondata-felt.`)
+      // PDF — prøv tekstlag først, fall back til OCR
+      const { detectPiiInPdf, hasPdfTextLayer } = await import('@/lib/pdfPiiDetect')
+      const hasText = await hasPdfTextLayer(loadedFile.url)
+
+      if (hasText) {
+        const found = await detectPiiInPdf(loadedFile.url, 2)
+        if (found.length === 0) {
+          alert('Ingen persondata funnet i dokumentet.')
+          return
+        }
+        setBoxes(prev => [...prev, ...found.map(b => ({
+          ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const,
+        }))])
+        alert(`Fant og markerte ${found.length} mulig persondata-felt.`)
+      } else {
+        // Ingen tekstlag — kjør OCR side for side
+        const { detectPiiInImage } = await import('@/lib/imagePiiDetect')
+        const newBoxes: RedactionBox[] = []
+        for (let p = 0; p < pdfPages.length; p++) {
+          const pageData = pdfPages[p]
+          const c = document.createElement('canvas')
+          c.width = pageData.width
+          c.height = pageData.height
+          c.getContext('2d')!.putImageData(pageData, 0, 0)
+          const found = await detectPiiInImage(c)
+          newBoxes.push(...found.map(b => ({
+            ...b, id: `pii-${++boxIdCounter}`, type: 'redact' as const, page: p + 1,
+          })))
+        }
+        if (newBoxes.length === 0) {
+          alert('Ingen persondata funnet (OCR — PDF uten tekstlag).')
+          return
+        }
+        setBoxes(prev => [...prev, ...newBoxes])
+        alert(`OCR fant og markerte ${newBoxes.length} mulig persondata-felt.`)
+      }
+    } finally {
+      setIsExporting(false)
     }
-  }, [loadedFile, proActive])
+  }, [loadedFile, proActive, pdfPages])
 
   const handleSearchRedact = useCallback(async () => {
     if (!proActive) { setShowUpgrade(true); return }

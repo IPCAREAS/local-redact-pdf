@@ -1,43 +1,96 @@
-export interface PiiMatch {
-  text: string
-  type: 'epost' | 'telefon' | 'fodselsnummer' | 'kontonummer' | 'belop'
-  page: number
-  bounds: { x: number; y: number; width: number; height: number }
-}
-
-// Norske PII-mønstre
+// Norske PII-mønstre — utvidet
 export const PII_PATTERNS = {
   // E-postadresser
   epost: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
 
-  // Norske telefonnumre: +47 etter fulgt av 8 siffer, eller 8-sifret nummer (mobil starter med 4/9, fasttelefon med 2/3/5/6/7/8)
-  telefon: /(?:\+47[\s-]?)\d{2}[\s-]?\d{2}[\s-]?\d{2}[\s-]?\d{2}|\b[49]\d{7}\b|\b[2358]\d{7}\b/g,
+  // Norske telefonnumre: +47/0047 + 8 siffer, eller 8-sifret mobilnummer
+  telefon:
+    /(?:\+47|0047)[\s-]?\d{2}[\s-]?\d{2}[\s-]?\d{2}[\s-]?\d{2}|\b(?:4|9)\d{7}\b|\b[2358]\d{7}\b/g,
 
-  // Norsk fødselsnummer: 11 siffer (DDMMYY + 5 kontrollsiffer), evt. med mellomrom etter 6
+  // Norsk fødselsnummer: 11 siffer (DDMMYY + 5), med/uten mellomrom
   fodselsnummer: /\b\d{6}[ ]?\d{5}\b/g,
 
-  // Norsk kontonummer: XXXX.XX.XXXXX (punktformat) eller 11 siffer på rad
-  kontonummer: /\b\d{4}\.\d{2}\.\d{5}\b|\b\d{11}\b/g,
+  // Norsk kontonummer: XXXX.XX.XXXXX eller XXXX XX XXXXX
+  kontonummer: /\b\d{4}[.\s]\d{2}[.\s]\d{5}\b/g,
 
-  // Beløp i kr/NOK: "1 234,56 kr", "kr 1 234", "NOK 12 000", "1234,-"
+  // Organisasjonsnummer: 9 siffer / NO ... MVA
+  orgnummer: /\b(?:NO\s*)?\d{3}[\s]?\d{3}[\s]?\d{3}(?:\s*MVA)?\b/g,
+
+  // Kortnumre: 13-19 siffer (VISA, MC, Amex) — med eller uten mellomrom/bindestrek
+  kortnummer: /\b(?:\d{4}[\s-]){3}\d{4}\b|\b\d{13,16}\b/g,
+
+  // Datoer: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
+  dato: /\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b/g,
+
+  // Beløp i kr/NOK
   belop: /\b\d{1,3}(?:[\s.]\d{3})*(?:,\d{1,2})?\s*(?:kr\.?|NOK|,-)|\bNOK\s+\d[\d\s.]*/gi,
 }
 
-export function findPiiInText(
-  text: string
-): { type: keyof typeof PII_PATTERNS; match: string; index: number }[] {
-  const results: { type: keyof typeof PII_PATTERNS; match: string; index: number }[] = []
+// --- Hjelpefunksjoner for linje-merging (PDF-tekstlag) ---
 
-  for (const [type, pattern] of Object.entries(PII_PATTERNS) as [
-    keyof typeof PII_PATTERNS,
-    RegExp,
-  ][]) {
-    const regex = new RegExp(pattern.source, 'gi')
-    let m: RegExpExecArray | null
-    while ((m = regex.exec(text)) !== null) {
-      results.push({ type, match: m[0], index: m.index })
+export interface CharPos {
+  x: number
+  y: number
+  charWidth: number
+  height: number
+}
+
+export interface LineItem {
+  str: string
+  transform: number[]
+  width: number
+  height?: number
+}
+
+/** Grupper tekstelementer etter Y-koordinat (± 3 enheter = samme linje) */
+export function groupItemsByLine(items: LineItem[]): LineItem[][] {
+  const lines: LineItem[][] = []
+  for (const item of items) {
+    const y = item.transform[5]
+    const existing = lines.find((l) => Math.abs(l[0].transform[5] - y) < 3)
+    if (existing) {
+      existing.push(item)
+    } else {
+      lines.push([item])
+    }
+  }
+  // Sorter hvert linje-array etter X-posisjon (venstre til høyre)
+  for (const line of lines) {
+    line.sort((a, b) => a.transform[4] - b.transform[4])
+  }
+  return lines
+}
+
+/** Slå sammen linjeelementer til én streng med per-tegn posisjonsinfo */
+export function mergeLineItems(items: LineItem[]): {
+  merged: string
+  charPositions: CharPos[]
+} {
+  let merged = ''
+  const charPositions: CharPos[] = []
+
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx]
+    const x0 = item.transform[4]
+    const y = item.transform[5]
+    const totalWidth = item.width || 0
+    const charCount = Math.max(item.str.length, 1)
+    const charWidth = totalWidth / charCount
+    const height = Math.abs(item.transform[3]) || item.height || 12
+
+    for (let i = 0; i < item.str.length; i++) {
+      charPositions.push({ x: x0 + i * charWidth, y, charWidth, height })
+      merged += item.str[i]
+    }
+
+    // Mellomrom mellom elementer
+    if (idx < items.length - 1) {
+      const nextX = items[idx + 1].transform[4]
+      const spaceW = Math.max(nextX - (x0 + totalWidth), 2)
+      charPositions.push({ x: x0 + totalWidth, y, charWidth: spaceW, height })
+      merged += ' '
     }
   }
 
-  return results
+  return { merged, charPositions }
 }
